@@ -1,78 +1,75 @@
-# Modelo OpenCV-OCR - Actor Detection API
+# Modelo OpenCV-OCR - Actor and Use Case Detection API
 
-Este repositorio contiene un sistema completo para la **detección de actores y casos de uso en diagramas de casos de uso del sistema** y extracción de texto asociado mediante **OCR (EasyOCR)**. El sistema incluye tanto el pipeline de procesamiento de imágenes como una API RESTful construida con FastAPI para generar reportes en PDF con los resultados.
+Este repositorio contiene un sistema completo para la **detección de actores y casos de uso en diagramas UML de casos de uso** y extracción de texto asociado mediante **OCR (EasyOCR)**. El sistema incluye tanto el pipeline de procesamiento de imágenes como una API RESTful construida con FastAPI para generar reportes en PDF con los resultados.
 
 ---
 
-## Archivos principales
+### ✨ Características:
+- **Detección dual**: Actores + Casos de uso en un solo procesamiento
+- **Blacklist inteligente**: Los actores detectados se usan para excluir falsos positivos en OCR
+- **PDF mejorados**: Reportes combinados con ambas secciones
+- **Exclusión de relaciones UML**: Filtrado automático de `<<include>>`, `<<extend>>`, etc.
+
+### 🔄 Flujo de Trabajo Mejorado:
+1. **Detección de actores** → Filtrado → Blacklist
+2. **OCR con exclusión** → Solo casos de uso válidos
+3. **Reporte unificado** → Actores + Casos de uso en un solo documento
+
+---
+
+## 📁 Archivos principales
 
 | Archivo | Descripción |
 |---------|-------------|
 | `actor_detector.py` | Script principal para la detección de actores y extracción de texto. Implementa todo el pipeline de procesamiento de imágenes, detección de cabezas y OCR. |
+| `usecase_ocr.py` | Módulo especializado en detección de casos de uso, excluyendo actores detectados y relaciones UML. |
 | `main.py` | Aplicación FastAPI que expone endpoints REST para procesar imágenes y generar reportes PDF. |
-| `pdf_builder.py` | Módulo para la generación de reportes PDF profesionales con los actores detectados. |
+| `pdf_builder.py` | Módulo para la generación de reportes PDF profesionales con actores y casos de uso. |
 
 ---
 
-## Pipeline de Detección de Actores
+## 🔧 Pipeline de Detección Completo
 
-El script sigue un flujo de trabajo estructurado en varias funciones, con estrategias de procesamiento y detección adaptadas a diagramas de Draw.io:
+### 📊 Flujo de Procesamiento Mejorado:
 
-### 1. Inicialización (`__init__`)
+```mermaid
+graph TD
+    A[Imagen de Diagrama UML] --> B[Detección de Actores]
+    B --> C[Filtrado y Renumeración]
+    C --> D[Crear Blacklist de Actores]
+    D --> E[OCR para Casos de Uso]
+    E --> F[Excluir Actores y Relaciones]
+    F --> G[Generar Reporte Unificado]
+    G --> H[PDF/JSON con Ambos Resultados]
+```
 
-* Carga la imagen desde disco.
-* Maneja imágenes con transparencia (canal alfa), rellenando el fondo con blanco si es necesario.
-* Obtiene dimensiones de la imagen para calcular las ROIs.
+### 1. Detección de Actores (`actor_detector.py`)
 
-### 2. Preprocesamiento (`preprocess`)
+Mantiene todas las funcionalidades originales:
+- **Preprocesamiento**: Conversión a escala de grises, inversión, umbralización
+- **Template matching**: Detección de figuras de actores
+- **Verificación de cabeza**: HoughCircles para validación geométrica
+- **OCR de texto**: Extracción de nombres de actores
 
-* Convierte la imagen a escala de grises.
-* Invierte colores si el fondo es claro para facilitar la detección.
-* Aplica un umbral binario para resaltar las figuras de los actores.
+### 2. Detección de Casos de Uso (`usecase_ocr.py`)
 
-### 3. Detección de actores por plantilla (`find_actors_by_template`)
+**Nuevo módulo especializado**:
+- **Blacklist automática**: Usa nombres de actores detectados para excluir falsos positivos
+- **Filtrado de relaciones UML**: Excluye automáticamente `<<include>>`, `<<extend>>`, etc.
+- **OCR configurable**: Umbral de confianza ajustable
+- **Resultados estructurados**: JSON con detalles de cada caso de uso detectado
 
-* Genera plantillas de actores (cabeza, cuerpo, brazos) de varios tamaños.
-* Aplica **template matching** (`cv2.matchTemplate`) para localizar coincidencias en la imagen.
-* Filtra duplicados cercanos para evitar contar el mismo actor varias veces.
+### 3. Generación de Reportes (`pdf_builder.py`)
 
-### 4. Verificación de cabeza (`verify_head_circle`)
-
-* Define una ROI por encima del actor donde debería encontrarse la cabeza.
-* Aplica **HoughCircles** para detectar círculos que representen la cabeza.
-* Filtra círculos no alineados geométricamente con la posición del actor.
-* Permite ajustar el **ancho y alto de la ROI** para mayor precisión.
-* Devuelve la posición de la cabeza si existe.
-
-### 5. Extracción de texto debajo del actor (`extract_text_below`)
-
-* Define una ROI hacia abajo del actor (ancho fijo, altura configurable).
-* Utiliza **EasyOCR** para reconocer texto dentro de la ROI.
-* Devuelve el texto detectado junto con la posición del ROI.
-* Ideal para diagramas de Draw.io donde el texto es legible y bien definido.
-
-### 6. Pipeline principal (`detect_actors`)
-
-* Combina detección por plantilla y verificación de cabeza.
-* Genera un listado de actores validados.
-* Para cada actor, extrae el texto debajo usando OCR.
-* Produce resultados finales y dibuja una imagen de salida con:
-
-  * Actor detectado
-  * Cabeza detectada
-  * ROI superior e inferior
-  * Texto detectado
-
-### 7. Salida y visualización (`draw_results`)
-
-* Dibuja círculos sobre actores y cabezas detectadas.
-* Dibuja rectángulos para ROIs superiores e inferiores.
-* Inserta etiquetas de texto indicando "HEAD" o "NO HEAD" y el texto detectado debajo.
-* Guarda la imagen final como `actors_debug_output.png`.
+**Funcionalidades extendidas**:
+- **Reportes combinados**: Actores + Casos de uso en un solo PDF
+- **Múltiples formatos**: Completo, simple y compacto
+- **Estadísticas integradas**: Conteos de ambas detecciones
+- **Diseño profesional**: Tablas formateadas y secciones claras
 
 ---
 
-## API REST - FastAPI
+## 🌐 API REST - FastAPI
 
 ### Endpoints Disponibles
 
@@ -80,61 +77,135 @@ El script sigue un flujo de trabajo estructurado en varias funciones, con estrat
 |--------|----------|-------------|------------|
 | `GET` | `/` | Información de la API | - |
 | `GET` | `/health` | Verificación del estado del servicio | - |
-| `POST` | `/detect-actors/` | Procesa imagen y devuelve resultados | `file`: Imagen, `debug`: Boolean, `format`: "pdf" o "json" |
-| `POST` | `/detect-actors-simple/` | Versión simplificada solo para PDF | `file`: Imagen |
+| `POST` | `/detect-actors/` | Procesa imagen y devuelve actores + casos de uso | `file`, `debug`, `format`, `ocr_confidence` |
+| `POST` | `/detect-actors-simple/` | Versión simplificada para PDF | `file`, `ocr_confidence` |
 | `GET` | `/example-actors/` | Genera PDF de ejemplo sin subir imagen | - |
 
-### Características de la API
+### Parámetros Nuevos
 
-* **Soporte para múltiples formatos**: PDF embebido o JSON estructurado
-* **Manejo de archivos temporales**: Limpieza automática después del procesamiento
-* **Modo debug**: Genera imágenes intermedias para diagnóstico
-* **Validación de tipos de archivo**: PNG, JPG, JPEG, BMP, TIFF, WEBP
-* **Respuestas estructuradas**: JSON con metadatos de procesamiento
+| Parámetro | Tipo | Descripción | Valor por Defecto |
+|-----------|------|-------------|-------------------|
+| `ocr_confidence` | float | Umbral de confianza para OCR de casos de uso (0.1-1.0) | 0.3 |
+| `format` | string | Formato de salida: `pdf`, `json`, `compact-pdf` | `pdf` |
 
-### Ejemplo de Uso con cURL
+### Ejemplos de Uso
 
 ```bash
-# Subir imagen y obtener PDF
-curl -X POST "http://localhost:8000/detect-actors/" \
+# Detección completa con confianza personalizada
+curl -X POST "http://localhost:8000/detect-actors/?ocr_confidence=0.4" \
   -F "file=@diagrama.png" \
-  -F "debug=false" \
-  -o reporte_actores.pdf
+  -o reporte_completo.pdf
 
-# Subir imagen y obtener JSON
+# Formato JSON con todos los datos
 curl -X POST "http://localhost:8000/detect-actors/?format=json" \
   -F "file=@diagrama.png" \
   -H "accept: application/json"
+
+# Versión simple solo para PDF
+curl -X POST "http://localhost:8000/detect-actors-simple/?ocr_confidence=0.5" \
+  -F "file=@diagrama.png" \
+  -o resultados_simples.pdf
 ```
 
 ---
 
-## Generación de Reportes PDF
+## 📄 Formatos de Salida
 
-El módulo `pdf_builder.py` genera reportes profesionales que incluyen:
+### 1. PDF Completo (`/detect-actors/`)
 
-1. **Información del reporte**: Fecha y hora de procesamiento
-2. **Resumen ejecutivo**: Conteo total de actores detectados
-3. **Tabla de actores**: Lista organizada con ID y nombre
-4. **Imagen procesada**: Vista de la imagen con anotaciones (modo debug)
-5. **Formato profesional**: Estilos consistentes, colores y branding
+**Estructura del reporte**:
+```
+REPORTE DE ANÁLISIS DE DIAGRAMA UML
+════════════════════════════════════
 
-### Características del PDF
+Resumen del Análisis:
+• Actores detectados: 4
+• Casos de uso detectados: 6
 
-* **Diseño responsive**: Se adapta al contenido
-* **Tablas formateadas**: Con colores alternados para mejor lectura
-* **Inclusión de imágenes**: Opcional, muestra la imagen procesada
-* **Metadatos**: Información de generación y sistema
-* **Múltiples estilos**: Títulos, subtítulos y contenido diferenciados
+ACTORES DETECTADOS:
+┌─────┬──────────────────────┐
+│ ID  │ Nombre del Actor     │
+├─────┼──────────────────────┤
+│ A1  │ Cliente              │
+│ A2  │ Sistema de Pagos     │
+│ A3  │ Administrador        │
+│ A4  │ Base de Datos        │
+└─────┴──────────────────────┘
+
+CASOS DE USO DETECTADOS:
+┌─────┬────────────────────────────────────┐
+│ ID  │ Descripción del Caso de Uso        │
+├─────┼────────────────────────────────────┤
+│ 1   │ Realizar compra en línea           │
+│ 2   │ Consultar historial de pedidos     │
+│ 3   │ Generar reporte mensual            │
+│ 4   │ Configurar preferencias            │
+│ 5   │ Actualizar información             │
+│ 6   │ Verificar disponibilidad           │
+└─────┴────────────────────────────────────┘
+```
+
+### 2. PDF Simple (`/detect-actors-simple/`)
+
+**Estructura simplificada**:
+```
+RESULTADOS DEL ANÁLISIS
+
+Actores identificados: 4 | Casos de uso: 6
+
+Actores:
+Actor 1: Cliente
+Actor 2: Sistema de Pagos
+Actor 3: Administrador
+Actor 4: Base de Datos
+
+Casos de Uso:
+1. Realizar compra en línea
+2. Consultar historial de pedidos
+3. Generar reporte mensual
+4. Configurar preferencias
+5. Actualizar información
+6. Verificar disponibilidad
+```
+
+### 3. JSON Response
+
+```json
+{
+  "status": "success",
+  "detection_time": "2024-01-15T10:30:45",
+  "statistics": {
+    "total_actors_detected": 5,
+    "actors_with_names": 4,
+    "actors_without_names": 1,
+    "use_cases_detected": 6,
+    "actors_in_final_report": 4
+  },
+  "actors": [
+    {"actor_id": 1, "name": "Usuario del Sistema"},
+    {"actor_id": 2, "name": "Administrador"},
+    {"actor_id": 3, "name": "Sistema de Pagos"},
+    {"actor_id": 4, "name": "Base de Datos"}
+  ],
+  "use_cases": [
+    {"use_case_id": 1, "description": "Iniciar sesión en el sistema"},
+    {"use_case_id": 2, "description": "Realizar pago en línea"},
+    {"use_case_id": 3, "description": "Consultar historial"},
+    {"use_case_id": 4, "description": "Generar reporte mensual"},
+    {"use_case_id": 5, "description": "Configurar preferencias"},
+    {"use_case_id": 6, "description": "Actualizar información"}
+  ]
+}
+```
 
 ---
 
-## Instalación y Configuración
+## ⚙️ Configuración Técnica
 
-### Dependencias de Python
+### Dependencias Actualizadas
 
 ```bash
-pip install fastapi[standard] python-multipart reportlab opencv-python numpy easyocr Pillow python-dateutil
+pip install fastapi[standard] python-multipart reportlab opencv-python numpy easyocr Pillow uvicorn
 ```
 
 ### Estructura del Proyecto
@@ -143,98 +214,149 @@ pip install fastapi[standard] python-multipart reportlab opencv-python numpy eas
 project/
 ├── main.py              # Aplicación FastAPI
 ├── actor_detector.py    # Lógica de detección de actores
-├── pdf_builder.py       # Generación de PDFs
-├── requirements.txt     # Dependencias
-├── requirements.txt     # Archivos temporales subidos
+├── usecase_ocr.py       # Detección de casos de uso (NUEVO)
+├── pdf_builder.py       # Generación de PDFs (MEJORADO)
+├── requirements.txt     # Dependencias actualizadas
+├── tmp/                 # Archivos temporales subidos
+└── README.md           # Documentación actualizada
 ```
 
-### Ejecución
+### Variables de Configuración
 
-```bash
-# Ejecutar la aplicación
-python main.py
-
-# La API estará disponible en:
-# http://localhost:8000
-# Documentación Swagger/OpenAPI:
-# http://localhost:8000/docs
-```
+| Variable | Descripción | Valor Recomendado |
+|----------|-------------|-------------------|
+| `ocr_confidence` | Sensibilidad del OCR para casos de uso | 0.3-0.5 |
+| `debug` | Generar imágenes de depuración | `false` (producción) |
+| `gpu` | Usar GPU para OCR | `false` (CPU por defecto) |
+| `include_empty` | Incluir actores sin nombre en JSON | `false` |
 
 ---
 
-## Estrategias y Consideraciones Técnicas
+## 🔍 Estrategias de Filtrado Mejoradas
 
-### Robustez en la Detección
+### 1. Blacklist de Actores
+- **Extracción automática**: Los nombres de actores detectados se añaden automáticamente
+- **Coincidencia inteligente**: Búsqueda parcial y exacta
+- **Case-insensitive**: No distingue mayúsculas/minúsculas
 
-* **ROI adaptables**: Permite ajustar alto y ancho para mejorar precisión en distintos diagramas
-* **Filtro de duplicados**: Evita detectar múltiples veces el mismo actor en áreas cercanas
-* **Verificación geométrica**: Valida que la cabeza esté correctamente posicionada sobre el actor
-* **Múltiples escalas**: Template matching con diferentes tamaños de plantilla
+### 2. Exclusión de Relaciones UML
+**Patrones excluidos automáticamente**:
+- `<<include>>`, `<<extend>>`
+- `<<includes>>`, `<<extends>>`
+- `include`, `extend` (en contexto UML)
+- Variaciones con diferentes símbolos
 
-### Procesamiento de Imágenes
-
-* **Manejo de transparencia**: Conversión automática de imágenes con canal alfa
-* **Umbralización adaptativa**: Inversión automática basada en el brillo promedio
-* **Preprocesamiento optimizado**: Operaciones específicas para diagramas Draw.io
-
-### OCR y Extracción de Texto
-
-* **Multi-idioma**: Soporte para español e inglés
-* **ROI específica**: Enfoque en la región debajo del actor para reducir falsos positivos
-* **Sin GPU requerida**: Configuración optimizada para CPU
-
-### API y Manejo de Errores
-
-* **Validación exhaustiva**: Verificación de tipos de archivo y parámetros
-* **Limpieza de recursos**: Eliminación automática de archivos temporales
-* **Respuestas informativas**: Mensajes de error claros y útiles
-* **Formatos múltiples**: Flexibilidad en el tipo de respuesta
+### 3. Filtrado por Confianza
+- **Umbral configurable**: `ocr_confidence` (0.1-1.0)
+- **Texto corto ignorado**: Menos de 3 caracteres
+- **Detección multilingüe**: Español e inglés
 
 ---
 
-## Ejemplo de Salida
+## 📊 Ejemplos de Resultados
 
-### PDF de Reporte
+### Caso de Éxito Típico
 
-El PDF generado incluye:
-- Encabezado con título y fecha
-- Tabla con todos los actores detectados
-- Imagen anotada (opcional, modo debug)
-- Pie de página informativo
+**Entrada**: Diagrama UML con 4 actores y 8 casos de uso
+**Procesamiento**:
+- Actores detectados: 4/4 (100%)
+- Casos de uso detectados: 6/8 (75%)
+- Relaciones excluidas: `<<include>>`, `<<extend>>` (100%)
 
-### JSON Response
+**Salida**: Reporte PDF con ambas secciones completas
 
-```json
-{
-  "status": "success",
-  "detection_time": "2024-01-15T10:30:45",
-  "total_actors": 4,
-  "actors": [
-    {"actor_id": 1, "name": "Usuario del Sistema"},
-    {"actor_id": 2, "name": "Administrador"},
-    {"actor_id": 3, "name": "Sistema de Pagos"},
-    {"actor_id": 4, "name": "Base de Datos"}
-  ],
-  "positions": [
-    {"x": 150, "y": 200},
-    {"x": 450, "y": 200},
-    {"x": 150, "y": 400},
-    {"x": 450, "y": 400}
-  ]
-}
-```
+### Manejo de Falsos Positivos
 
-### Imagen de Debug
-
-Cuando se activa el modo debug, se generan:
-1. `actors_debug_output.png` - Imagen completa con anotaciones
-2. Archivos ROI individuales por actor
-3. Imágenes de círculos detectados
+El sistema evita:
+1. **Nombres de actores como casos de uso**
+2. **Relaciones UML en el texto**
+3. **Texto irrelevante o ruido**
+4. **Elementos de diagrama no relevantes**
 
 ---
 
-## Licencia y Contribuciones
+## 🚨 Manejo de Errores
 
-Este proyecto está diseñado para procesamiento académico y profesional de diagramas de casos de uso. Las contribuciones son bienvenidas para mejorar la precisión de detección o añadir nuevas funcionalidades.
+### Casos Comunes y Soluciones
+
+| Error | Causa Probable | Solución |
+|-------|---------------|----------|
+| "No se detectaron actores" | Diagrama muy complejo o atípico | Ajustar umbrales de template matching |
+| "Casos de uso incorrectos" | OCR confunde elementos | Aumentar `ocr_confidence` |
+| "Falsos positivos en casos de uso" | Blacklist incompleta | Verificar detección de actores |
+| "PDF sin imágenes" | Modo debug desactivado | Usar `debug=true` |
+
+### Modo Debug
+
+Activar con `debug=true` para obtener:
+- `actors_debug_output.png` - Imagen con anotaciones
+- `usecases_results.json` - Resultados detallados de OCR
+- ROIs individuales por actor y caso de uso
+
+---
+
+## 📈 Mejoras Futuras
+
+### En Desarrollo:
+- [ ] Soporte para más tipos de diagramas UML
+- [ ] Reconocimiento de flechas y conectores
+- [ ] Exportación a formatos adicionales (Excel, CSV)
+- [ ] Interfaz web para carga visual
+
+### Características Planeadas:
+- [ ] Análisis de relaciones actor-caso de uso
+- [ ] Validación de coherencia del diagrama
+- [ ] Sugerencias de mejoras en el diseño
+- [ ] Integración con herramientas UML populares
+
+---
+
+## 📚 Referencias Técnicas
+
+### Tecnologías Utilizadas
+- **OpenCV**: Procesamiento de imágenes y detección de patrones
+- **EasyOCR**: Reconocimiento óptico de caracteres
+- **FastAPI**: Framework web moderno y rápido
+- **ReportLab**: Generación de PDFs programática
+- **NumPy**: Operaciones numéricas eficientes
+
+### Algoritmos Implementados
+1. **Template Matching**: Para localización de actores
+2. **Hough Transform**: Para detección de círculos (cabezas)
+3. **Umbralización adaptativa**: Para preprocesamiento
+4. **Filtrado por blacklist**: Para exclusión inteligente
+
+---
+
+## 🤝 Contribuciones
+
+Las contribuciones son bienvenidas en las siguientes áreas:
+
+1. **Mejora de precisión**: Nuevos algoritmos de detección
+2. **Soporte adicional**: Más tipos de diagramas UML
+3. **Optimización**: Mejor rendimiento y eficiencia
+4. **Documentación**: Ejemplos y tutoriales
+
+### Cómo Contribuir:
+1. Fork del repositorio
+2. Crear rama de características (`git checkout -b feature/nueva-funcionalidad`)
+3. Commit de cambios (`git commit -am 'Añadir nueva funcionalidad'`)
+4. Push a la rama (`git push origin feature/nueva-funcionalidad`)
+5. Crear Pull Request
+
+---
+
+## 📄 Licencia
+
+Este proyecto está licenciado bajo los términos de la licencia MIT. Ver el archivo `LICENSE` para más detalles.
+
+---
+
+## ✉️ Contacto y Soporte
+
+Para preguntas, problemas o sugerencias:
+- **Issues**: Reportar en GitHub Issues
+- **Documentación**: Consultar este README
+- **Ejemplos**: Probar con el endpoint `/example-actors/`
 
 ---
